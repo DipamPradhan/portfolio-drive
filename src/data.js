@@ -1,0 +1,68 @@
+export const PORTFOLIO = {
+  user: {
+    name: 'Dipam Pradhan',
+    role: 'Full-Stack Developer',
+    bio: 'I build interactive web experiences and delightful interfaces. I love turning ideas into pixel-perfect realities.',
+    email: 'alex.rivera@example.com',
+    phone: '+1 (555) 123-4567',
+    github: 'github.com/alexrivera',
+    linkedin: 'linkedin.com/in/alexrivera',
+  },
+  experience: [
+    { title: 'Senior Frontend Engineer', company: 'TechNova', years: '2022 \u2013 Present', desc: 'Leading frontend architecture for a real-time SaaS analytics platform used by 50k+ users.' },
+    { title: 'Junior Developer', company: 'StartUp XYZ', years: '2020 \u2013 2022', desc: 'Built responsive web apps, REST APIs, and integrated third-party services.' },
+    { title: 'Web Design Intern', company: 'Creative Agency', years: '2019 \u2013 2020', desc: 'Designed and prototyped client websites and brand identities.' },
+  ],
+  projects: [
+    { title: 'Portfolio Dashboard', desc: 'Real-time analytics dashboard with interactive 3D charts and live data streaming.', tech: 'React, Three.js, D3.js' },
+    { title: 'E-commerce Store', desc: 'Full-stack shop with 3D product previews, cart system, and Stripe payments.', tech: 'Node.js, React, Three.js, Stripe' },
+    { title: 'Data Visualizer', desc: 'Interactive 3D explorer for visualizing large scientific datasets in the browser.', tech: 'Three.js, Python, Django' },
+  ],
+}
+
+export const DESTINATIONS = [
+  {
+    key: 'about',
+    label: 'About Me',
+    color: '#9b59b6',
+    colorInt: 0x9b59b6,
+    position: [0, 0, -80],
+    building: [10, 0, -80],
+    billboardY: 6,
+    rotation: 0,
+    subtitle: 'Dipam Pradhan \u2022 Full-Stack Developer',
+  },
+  {
+    key: 'experience',
+    label: 'Experience',
+    color: '#4a90d9',
+    colorInt: 0x4a90d9,
+    position: [80, 0, 0],
+    building: [80, 0, 10],
+    billboardY: 6,
+    rotation: -Math.PI / 2,
+    subtitle: 'Work History & Skills',
+  },
+  {
+    key: 'projects',
+    label: 'Projects',
+    color: '#27ae60',
+    colorInt: 0x27ae60,
+    position: [0, 0, 80],
+    building: [-10, 0, 80],
+    billboardY: 6,
+    rotation: Math.PI,
+    subtitle: 'Featured Work & Case Studies',
+  },
+  {
+    key: 'contact',
+    label: 'Contact',
+    color: '#e74c3c',
+    colorInt: 0xe74c3c,
+    position: [-80, 0, 0],
+    building: [-80, 0, -10],
+    billboardY: 6,
+    rotation: Math.PI / 2,
+    subtitle: 'Get In Touch',
+  },
+]
