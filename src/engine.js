@@ -587,7 +587,7 @@ export class CollisionSystem {
 }
 
 export class InteractionSystem {
-  constructor() { this.dests = []; this.nearby = null; this.radius = 16 }
+  constructor() { this.dests = []; this.nearby = null; this.radius = 8 }
   addDest(key, pos, label) { this.dests.push({ key, pos: pos.clone(), label }) }
   update(vp) {
     this.nearby = null; let md = this.radius

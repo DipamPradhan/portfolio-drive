@@ -256,8 +256,8 @@ export default function App() {
     if (!container) return
 
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0xe8a97a)
-    scene.fog = new THREE.FogExp2(0xe8a97a, 0.0028)
+    scene.background = new THREE.Color(0x9a6a55)
+    scene.fog = new THREE.FogExp2(0x9a6a55, 0.0021)
 
     const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 500)
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -271,7 +271,7 @@ export default function App() {
 
     const hemi = new THREE.HemisphereLight(0xffe6c8, 0x3a5c40, 0.75)
     scene.add(hemi)
-    const sun = new THREE.DirectionalLight(0xfff0d8, 1.35)
+    const sun = new THREE.DirectionalLight(0xffdfb2, 1.55)
     sun.castShadow = true
     sun.shadow.mapSize.set(2048, 2048)
     sun.shadow.camera.near = 5; sun.shadow.camera.far = 180
@@ -366,7 +366,7 @@ export default function App() {
       } else if (g.phase === 'play') {
         if (!g.pausedFlag) {
           vehicle.update(dt, input)
-          vehicle.position.copy(collision.resolve(vehicle.position, 2.6))
+          vehicle.position.copy(collision.resolve(vehicle.position, 2.15))
           camCtrl.update(dt, vehicle.position, vehicle.heading)
           const gear = vehicle.speed > 0.5 ? 'D' : vehicle.speed < -0.5 ? 'R' : 'N'
           audio.update(vehicle.speed, gear)
@@ -396,8 +396,8 @@ export default function App() {
 
       destObjs.forEach((o, i) => {
         const pulse = 0.5 + Math.sin(elapsed * 2 + i * 1.7) * 0.4
-        o.flash.material.opacity = pulse
-        o.ring.material.opacity = pulse
+        if (o.flash) o.flash.material.opacity = pulse
+        if (o.ring) o.ring.material.opacity = pulse
       })
       clouds.forEach(c => {
         c.position.x += c.userData.speed * dt
@@ -409,10 +409,11 @@ export default function App() {
       }
       effects.update(dt, elapsed, g.phase === 'idle' || g.phase === 'intro' ? null : vehicle)
 
+      const ePressed = input.consumePress('e')
       if (g.phase === 'play' && !g.pausedFlag) {
         const nearby = interaction.update(vehicle.position) || null
         if ((nearby ? nearby.key : null) !== lastNearbyKey) { setNearbyDest(nearby); lastNearbyKey = nearby ? nearby.key : null }
-        if (!g.focused && nearby && input.consumePress('e')) beginFocus(nearby.key)
+        if (!g.focused && nearby && ePressed) beginFocus(nearby.key)
       }
       if (g.phase === 'focusShow' && (input.consumePress('escape') || input.consumePress('x') || g.closeReq)) {
         g.closeReq = false
