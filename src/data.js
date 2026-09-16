@@ -3,10 +3,11 @@ export const PORTFOLIO = {
     name: 'Dipam Pradhan',
     role: 'Full-Stack Developer',
     bio: 'I build interactive web experiences and delightful interfaces. I love turning ideas into pixel-perfect realities.',
-    email: 'alex.rivera@example.com',
-    phone: '+1 (555) 123-4567',
-    github: 'github.com/alexrivera',
-    linkedin: 'linkedin.com/in/alexrivera',
+    email: 'meedipam@gmail.com',
+    phone: '9824007080',
+    github: 'github.com/dipampradhan',
+    linkedin: 'linkedin.com/in/dipam-pradhan',
+    instagram: '@dipam.pam',
   },
   experience: [
     { title: 'Senior Frontend Engineer', company: 'TechNova', years: '2022 \u2013 Present', desc: 'Leading frontend architecture for a real-time SaaS analytics platform used by 50k+ users.' },
@@ -18,6 +19,10 @@ export const PORTFOLIO = {
     { title: 'E-commerce Store', desc: 'Full-stack shop with 3D product previews, cart system, and Stripe payments.', tech: 'Node.js, React, Three.js, Stripe' },
     { title: 'Data Visualizer', desc: 'Interactive 3D explorer for visualizing large scientific datasets in the browser.', tech: 'Three.js, Python, Django' },
   ],
+  copyright: {
+    brand: 'MapidX',
+    instagram: '@dipam.pam',
+  },
 }
 
 export const DESTINATIONS = [

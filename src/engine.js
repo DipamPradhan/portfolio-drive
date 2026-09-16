@@ -30,6 +30,16 @@ const WHEEL_CONFIG = [
   { x: 1.4, z: 1.7, front: false },
 ]
 
+// Per-wheel suspension tuning so the truck doesn't feel like one rigid slab:
+// the front end reacts a little quicker and stiffer (steering feel), while the
+// rear carries more travel and softer damping (planted power, softer landings).
+const WHEEL_TUNING = [
+  { springK: 78, springDamp: 13.5, travel: [-0.38, 0.5] },
+  { springK: 78, springDamp: 13.5, travel: [-0.38, 0.5] },
+  { springK: 58, springDamp: 10.5, travel: [-0.46, 0.62] },
+  { springK: 58, springDamp: 10.5, travel: [-0.46, 0.62] },
+]
+
 export class VehicleController {
   constructor(scene) {
     this.scene = scene
@@ -57,6 +67,7 @@ export class VehicleController {
     this.rideHeight = 1.55
     this.wheelRadius = 0.85
     this.gravity = 24
+    // Kept for reference/back-compat; per-wheel values in WHEEL_TUNING now drive the suspension.
     this.springK = 65
     this.springDamp = 12
     this.trackWidth = 2.8
@@ -67,6 +78,7 @@ export class VehicleController {
     this.allWheels = []
     this.wheelY = [this.position.y, this.position.y, this.position.y, this.position.y]
     this.wheelVel = [0, 0, 0, 0]
+    this.wheelCompression = [0, 0, 0, 0]
     this.bodyPitch = 0
     this.bodyRoll = 0
     this.pitchVel = 0
@@ -80,6 +92,10 @@ export class VehicleController {
     this.tailMat = null
     this.reverseMats = []
     this._tailI = 0.9
+
+    // Scratch objects reused every frame instead of being allocated in the hot path.
+    this._tmpFwd = new THREE.Vector3()
+    this._tmpRight = new THREE.Vector3()
 
     this.group = new THREE.Group()
     this.group.rotation.order = 'YXZ'
@@ -99,7 +115,7 @@ export class VehicleController {
     const windowMat = new THREE.MeshStandardMaterial({ color: 0x7ec8e3, roughness: 0.05, metalness: 0.7 })
     const lightMat = new THREE.MeshStandardMaterial({ color: 0xfff6cc, emissive: 0xffefb0, emissiveIntensity: 1.6 })
     const tailMat = new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xff2222, emissiveIntensity: 0.9 })
-    const tireMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.92 })
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.94 })
     const rimMat = new THREE.MeshStandardMaterial({ color: 0xb0b8c4, roughness: 0.3, metalness: 0.75 })
     const springMat = new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness: 0.4, metalness: 0.6 })
     const axleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.5 })
@@ -320,13 +336,14 @@ export class VehicleController {
     spareBracket.position.set(0, 1.35, 2.55)
     g.add(spareBracket)
 
-    // ---- big monster truck wheels ----
-    const TW = 0.52
-    const tireGeo = new THREE.CylinderGeometry(this.wheelRadius, this.wheelRadius, TW, 20)
-    const rimGeo = new THREE.CylinderGeometry(0.42, 0.42, TW + 0.04, 10)
-    const hubGeo = new THREE.CylinderGeometry(0.15, 0.15, TW + 0.06, 8)
-    const treadGeo = new THREE.TorusGeometry(this.wheelRadius, 0.06, 6, 20)
-    const treadMat = new THREE.MeshStandardMaterial({ color: 0x0e0e0e, roughness: 0.98 })
+    // ---- big monster truck wheels: deep sidewall, chunky knobby lug tread ----
+    const TW = 0.58
+    const tireGeo = new THREE.CylinderGeometry(this.wheelRadius, this.wheelRadius, TW, 22)
+    const sidewallGeo = new THREE.CylinderGeometry(this.wheelRadius * 0.98, this.wheelRadius * 0.98, TW * 1.01, 22)
+    const rimGeo = new THREE.CylinderGeometry(0.4, 0.4, TW + 0.05, 12)
+    const hubGeo = new THREE.CylinderGeometry(0.16, 0.16, TW + 0.08, 8)
+    const lugGeo = new THREE.BoxGeometry(0.16, TW * 0.62, 0.24)
+    const treadBandMat = new THREE.MeshStandardMaterial({ color: 0x0b0b0b, roughness: 1 })
 
     WHEEL_CONFIG.forEach((cfg, i) => {
       const susp = new THREE.Group()
@@ -341,12 +358,21 @@ export class VehicleController {
       tire.castShadow = true
       spin.add(tire)
 
-      for (let t = 0; t < 14; t++) {
-        const angle = (t / 14) * Math.PI * 2
-        const tread = new THREE.Mesh(treadGeo, treadMat)
-        tread.rotation.y = angle
-        tread.position.set(0, 0, 0)
-        spin.add(tread)
+      // Sidewall ring detail (reads as the deep off-road sidewall profile).
+      const sidewall = new THREE.Mesh(sidewallGeo, tireMat)
+      sidewall.rotation.z = Math.PI / 2
+      spin.add(sidewall)
+
+      // Chunky knobby lugs around the circumference replace the old thin tread rings,
+      // giving a real monster-truck tread silhouette instead of smooth rubber.
+      const lugCount = 18
+      for (let t = 0; t < lugCount; t++) {
+        const angle = (t / lugCount) * Math.PI * 2
+        const lug = new THREE.Mesh(lugGeo, treadBandMat)
+        lug.position.set(0, Math.cos(angle) * (this.wheelRadius + 0.06), Math.sin(angle) * (this.wheelRadius + 0.06))
+        lug.rotation.x = angle
+        lug.castShadow = true
+        spin.add(lug)
       }
 
       const rim = new THREE.Mesh(rimGeo, rimMat)
@@ -356,16 +382,19 @@ export class VehicleController {
       hub.rotation.z = Math.PI / 2
       spin.add(hub)
 
-      for (let s = 0; s < 5; s++) {
-        const spoke = new THREE.Mesh(new THREE.BoxGeometry(TW + 0.04, 0.03, 0.36), rimMat)
-        spoke.rotation.x = (s / 5) * Math.PI
+      for (let s = 0; s < 6; s++) {
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(TW + 0.05, 0.035, 0.38), rimMat)
+        spoke.rotation.x = (s / 6) * Math.PI
         spoke.position.set(0, 0, 0)
         spin.add(spoke)
       }
 
       this.chassis.add(susp)
-      this.allWheels.push({ susp, pivot, spin, i, config: cfg })
-      if (cfg.front) this.frontWheels.push({ susp, pivot, spin, i, config: cfg })
+      // spin: the rolling wheel mesh (visually squashes when the tire compresses)
+      // pivot: steering yaw for front wheels
+      // susp: vertical suspension travel per-wheel
+      this.allWheels.push({ susp, pivot, spin, i, config: cfg, tuning: WHEEL_TUNING[i] })
+      if (cfg.front) this.frontWheels.push({ susp, pivot, spin, i, config: cfg, tuning: WHEEL_TUNING[i] })
     })
   }
 
@@ -413,7 +442,8 @@ export class VehicleController {
     }
     this.speed = Math.max(-this.maxReverse, Math.min(this.speed, maxS))
 
-    const fwd = new THREE.Vector3(-Math.sin(this.heading), 0, -Math.cos(this.heading))
+    // Reuse a scratch vector for the forward direction instead of allocating one every frame.
+    const fwd = this._tmpFwd.set(-Math.sin(this.heading), 0, -Math.cos(this.heading))
     this.position.addScaledVector(fwd, this.speed * dt)
 
     this.rotateRate = (this.heading - this.prevHeading) / dt
@@ -446,10 +476,13 @@ export class VehicleController {
     let center = 0
     for (let i = 0; i < 4; i++) {
       const cfg = WHEEL_CONFIG[i]
+      const tune = WHEEL_TUNING[i]
       const wx = this.position.x + cfg.x * cos - cfg.z * sin
       const wz = this.position.z + cfg.x * sin + cfg.z * cos
       const g = this.terrainHandler(wx, wz)
-      const acc = this.springK * (g - this.wheelY[i]) - this.springDamp * this.wheelVel[i]
+      // Each corner now runs its own spring/damper constants (see WHEEL_TUNING),
+      // so the front and rear no longer move as one rigid slab.
+      const acc = tune.springK * (g - this.wheelY[i]) - tune.springDamp * this.wheelVel[i]
       this.wheelVel[i] += acc * dt
       this.wheelY[i] += this.wheelVel[i] * dt
       center += this.wheelY[i]
@@ -510,10 +543,19 @@ export class VehicleController {
     this.bodyRoll = THREE.MathUtils.clamp(this.bodyRoll, -0.2, 0.2)
     this.bodyBob = THREE.MathUtils.clamp(this.bodyBob, -0.15, 0.15)
 
-for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 4; i++) {
       const w = this.allWheels[i]
-      const travel = THREE.MathUtils.clamp(this.wheelY[i] - center, -0.42, 0.55) * 0.9
+      const tune = WHEEL_TUNING[i]
+      const travel = THREE.MathUtils.clamp(this.wheelY[i] - center, tune.travel[0], tune.travel[1]) * 0.9
       w.susp.position.y = this.wheelRadius - this.rideHeight + travel
+
+      // Visual tire compression: the sidewall squashes slightly under load and on
+      // hard impacts, instead of every wheel behaving like a rigid solid disc.
+      const loadFrac = THREE.MathUtils.clamp((tune.travel[1] - travel) / (tune.travel[1] - tune.travel[0]), 0, 1)
+      const targetSquash = 1 - loadFrac * 0.09 - Math.min(0.06, Math.max(0, -this.impactVel) * 0.006)
+      this.wheelCompression[i] += (targetSquash - this.wheelCompression[i]) * Math.min(1, 18 * dt)
+      // The tire cylinder's rolling axis is local X, so only squash the radial (Y/Z) extent.
+      w.spin.scale.set(1, this.wheelCompression[i], this.wheelCompression[i])
     }
   }
 
@@ -548,38 +590,83 @@ export class CollisionSystem {
     this.spheres = []
     this.boxes = []
     this.bounds = { minX: -115, maxX: 115, minZ: -115, maxZ: 115 }
+    // A uniform grid speeds up collision resolution once the world has many
+    // scattered rocks/trees, instead of testing every obstacle every frame.
+    this.cellSize = 12
+    this.grid = new Map()
   }
-  addSphere(c, r) { this.spheres.push({ c: c.clone(), r }) }
-  addBox(mn, mx) { this.boxes.push({ mn: mn.clone(), mx: mx.clone() }) }
+  _cellKey(cx, cz) { return `${cx},${cz}` }
+  _cellsFor(c, r) {
+    const minCx = Math.floor((c.x - r) / this.cellSize)
+    const maxCx = Math.floor((c.x + r) / this.cellSize)
+    const minCz = Math.floor((c.z - r) / this.cellSize)
+    const maxCz = Math.floor((c.z + r) / this.cellSize)
+    const cells = []
+    for (let cx = minCx; cx <= maxCx; cx++) for (let cz = minCz; cz <= maxCz; cz++) cells.push([cx, cz])
+    return cells
+  }
+  _addToGrid(entry) {
+    for (const [cx, cz] of this._cellsFor(entry.c, entry.r)) {
+      const key = this._cellKey(cx, cz)
+      if (!this.grid.has(key)) this.grid.set(key, [])
+      this.grid.get(key).push(entry)
+    }
+  }
+  addSphere(c, r) {
+    const entry = { c: c.clone(), r, type: 'sphere' }
+    this.spheres.push(entry)
+    this._addToGrid(entry)
+  }
+  addBox(mn, mx) {
+    const entry = { mn: mn.clone(), mx: mx.clone(), type: 'box', c: mn.clone().add(mx).multiplyScalar(0.5), r: mn.distanceTo(mx) * 0.5 }
+    this.boxes.push(entry)
+    this._addToGrid(entry)
+  }
   resolve(pos, vr) {
     let p = pos.clone(); const b = this.bounds
     p.x = Math.max(b.minX + vr, Math.min(b.maxX - vr, p.x))
     p.z = Math.max(b.minZ + vr, Math.min(b.maxZ - vr, p.z))
-    for (const s of this.spheres) {
-      const dx = p.x - s.c.x, dz = p.z - s.c.z
-      const dist = Math.sqrt(dx * dx + dz * dz)
-      const minD = s.r + vr
-      if (dist < minD && dist > 0.01) {
-        const nx = dx / dist, nz = dz / dist
-        p.x = s.c.x + nx * minD; p.z = s.c.z + nz * minD
-      }
-    }
-    for (const box of this.boxes) {
-      const cx = Math.max(box.mn.x, Math.min(p.x, box.mx.x))
-      const cz = Math.max(box.mn.z, Math.min(p.z, box.mx.z))
-      const dx = p.x - cx, dz = p.z - cz
-      const dist = Math.sqrt(dx * dx + dz * dz)
-      if (dist < vr && dist > 0.01) {
-        const nx = dx / dist, nz = dz / dist
-        p.x = cx + nx * vr; p.z = cz + nz * vr
-      } else if (dist <= 0.01) {
-        const dL = p.x - box.mn.x, dR = box.mx.x - p.x
-        const dF = box.mx.z - p.z, dB = p.z - box.mn.z
-        const m = Math.min(dL, dR, dF, dB)
-        if (m === dL) p.x = box.mn.x - vr
-        else if (m === dR) p.x = box.mx.x + vr
-        else if (m === dF) p.z = box.mx.z + vr
-        else p.z = box.mn.z - vr
+
+    // Only test obstacles in the grid cells the vehicle currently overlaps,
+    // instead of iterating every sphere/box in the world every frame.
+    const cx = Math.floor(p.x / this.cellSize), cz = Math.floor(p.z / this.cellSize)
+    const seen = new Set()
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const key = this._cellKey(cx + dx, cz + dz)
+        const bucket = this.grid.get(key)
+        if (!bucket) continue
+        for (const entry of bucket) {
+          if (seen.has(entry)) continue
+          seen.add(entry)
+          if (entry.type === 'sphere') {
+            const dxp = p.x - entry.c.x, dzp = p.z - entry.c.z
+            const dist = Math.sqrt(dxp * dxp + dzp * dzp)
+            const minD = entry.r + vr
+            if (dist < minD && dist > 0.01) {
+              const nx = dxp / dist, nz = dzp / dist
+              p.x = entry.c.x + nx * minD; p.z = entry.c.z + nz * minD
+            }
+          } else {
+            const box = entry
+            const bcx = Math.max(box.mn.x, Math.min(p.x, box.mx.x))
+            const bcz = Math.max(box.mn.z, Math.min(p.z, box.mx.z))
+            const dxp = p.x - bcx, dzp = p.z - bcz
+            const dist = Math.sqrt(dxp * dxp + dzp * dzp)
+            if (dist < vr && dist > 0.01) {
+              const nx = dxp / dist, nz = dzp / dist
+              p.x = bcx + nx * vr; p.z = bcz + nz * vr
+            } else if (dist <= 0.01) {
+              const dL = p.x - box.mn.x, dR = box.mx.x - p.x
+              const dF = box.mx.z - p.z, dB = p.z - box.mn.z
+              const m = Math.min(dL, dR, dF, dB)
+              if (m === dL) p.x = box.mn.x - vr
+              else if (m === dR) p.x = box.mx.x + vr
+              else if (m === dF) p.z = box.mx.z + vr
+              else p.z = box.mn.z - vr
+            }
+          }
+        }
       }
     }
     return p
@@ -587,7 +674,7 @@ export class CollisionSystem {
 }
 
 export class InteractionSystem {
-  constructor() { this.dests = []; this.nearby = null; this.radius = 8 }
+  constructor() { this.dests = []; this.nearby = null; this.radius = 14 }
   addDest(key, pos, label) { this.dests.push({ key, pos: pos.clone(), label }) }
   update(vp) {
     this.nearby = null; let md = this.radius

@@ -396,6 +396,106 @@ function buildParkour(scene, terrain, collisionSystem) {
   scene.add(group)
 }
 
+function buildRaftCrossing(scene, terrain, cx, cz, lengthAxis = 'x') {
+  // A log raft "bridges" a sunken mud pit. Like the timber bridge above, it is a
+  // pure drive-over visual: no collision box, the terrain height still carries
+  // the truck's suspension across it so the crossing stays physically consistent.
+  const group = new THREE.Group()
+  const y0 = terrain(cx, cz)
+  const along = lengthAxis === 'x' ? 15 : 9
+  const across = lengthAxis === 'x' ? 9 : 15
+
+  const mudMat = new THREE.MeshStandardMaterial({ map: createDirtTexture(), color: 0x4c3f2c, roughness: 1 })
+  const pit = new THREE.Mesh(new THREE.PlaneGeometry(along + 4, across + 4, 14, 14), mudMat)
+  pit.rotation.x = -Math.PI / 2
+  const pp = pit.geometry.attributes.position
+  for (let i = 0; i < pp.count; i++) {
+    const lx = pp.getX(i), lz = pp.getY(i)
+    const d = Math.min(1, Math.hypot(lx / (along / 2 + 2), lz / (across / 2 + 2)))
+    pp.setZ(i, -0.55 * (1 - d * d))
+  }
+  pit.geometry.computeVertexNormals()
+  pit.position.set(cx, y0 + 0.03, cz)
+  pit.receiveShadow = true
+  group.add(pit)
+
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: 1 })
+  const ropeMat = new THREE.MeshStandardMaterial({ color: 0xcbb37a, roughness: 0.95 })
+  const drumMat = new THREE.MeshStandardMaterial({ color: 0x2c4d33, roughness: 0.7, metalness: 0.2 })
+
+  const logCount = 9
+  const logLen = lengthAxis === 'x' ? along : across
+  const spanW = lengthAxis === 'x' ? across * 0.62 : along * 0.62
+  for (let i = 0; i < logCount; i++) {
+    const t = (i / (logCount - 1) - 0.5) * spanW
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, logLen, 10), woodMat)
+    if (lengthAxis === 'x') { log.rotation.z = Math.PI / 2; log.position.set(cx, y0 - 0.08, cz + t) }
+    else { log.position.set(cx + t, y0 - 0.08, cz) }
+    log.castShadow = true; log.receiveShadow = true
+    group.add(log)
+  }
+
+  // Buoyant pontoon drums slung underneath the log deck for a raft silhouette.
+  for (const t of [-spanW * 0.35, 0, spanW * 0.35]) {
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, logLen * 0.92, 10), drumMat)
+    if (lengthAxis === 'x') { drum.rotation.z = Math.PI / 2; drum.position.set(cx, y0 - 0.55, cz + t) }
+    else { drum.position.set(cx + t, y0 - 0.55, cz) }
+    drum.castShadow = true
+    group.add(drum)
+  }
+
+  // Rope rails along both edges plus corner posts.
+  for (const side of [-1, 1]) {
+    const railGeo = new THREE.CylinderGeometry(0.045, 0.045, logLen, 6)
+    const rail = new THREE.Mesh(railGeo, ropeMat)
+    if (lengthAxis === 'x') { rail.rotation.z = Math.PI / 2; rail.position.set(cx, y0 + 0.55, cz + side * spanW * 0.52) }
+    else { rail.position.set(cx + side * spanW * 0.52, y0 + 0.55, cz) }
+    group.add(rail)
+    for (const end of [-1, 1]) {
+      const postPos = lengthAxis === 'x'
+        ? [cx + end * logLen * 0.48, y0 + 0.28, cz + side * spanW * 0.52]
+        : [cx + side * spanW * 0.52, y0 + 0.28, cz + end * logLen * 0.48]
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.62, 6), woodMat)
+      post.position.set(...postPos)
+      group.add(post)
+    }
+  }
+
+  // Small timber ramps easing the truck on and off the raft deck.
+  const rampGeo = new THREE.BoxGeometry(lengthAxis === 'x' ? 2.6 : spanW, 0.3, lengthAxis === 'x' ? spanW : 2.6)
+  for (const end of [-1, 1]) {
+    const rx = lengthAxis === 'x' ? cx + end * (logLen / 2 + 1.2) : cx
+    const rz = lengthAxis === 'x' ? cz : cz + end * (logLen / 2 + 1.2)
+    const ramp = new THREE.Mesh(rampGeo, woodMat)
+    ramp.position.set(rx, y0 + 0.02, rz)
+    ramp.rotation.z = lengthAxis === 'x' ? (end > 0 ? -0.16 : 0.16) : 0
+    ramp.rotation.x = lengthAxis === 'z' ? (end > 0 ? -0.16 : 0.16) : 0
+    ramp.castShadow = true; ramp.receiveShadow = true
+    group.add(ramp)
+  }
+
+  // Signage announcing the raft crossing.
+  const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 220
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#11161a'; roundRectPath(ctx, 0, 0, 640, 220, 20); ctx.fill()
+  ctx.strokeStyle = '#6ee7a8'; ctx.lineWidth = 7; roundRectPath(ctx, 6, 6, 628, 208, 16); ctx.stroke()
+  ctx.fillStyle = '#fff'; ctx.font = '800 52px system-ui'; ctx.textAlign = 'center'
+  ctx.fillText('RAFT CROSSING', 320, 96)
+  ctx.fillStyle = '#c9d0d5'; ctx.font = '26px system-ui'; ctx.fillText('MUD PIT • LOG DECK', 320, 150)
+  const signMat = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(canvas), side: THREE.DoubleSide })
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.4), signMat)
+  const signPos = lengthAxis === 'x' ? [cx - logLen / 2 - 2.2, y0 + 2.6, cz] : [cx, y0 + 2.6, cz - logLen / 2 - 2.2]
+  sign.position.set(...signPos)
+  sign.rotation.y = lengthAxis === 'x' ? Math.PI / 2 : 0
+  sign.castShadow = true
+  group.add(sign)
+  const postL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 2.6, 8), woodMat)
+  postL.position.set(signPos[0], y0 + 1.3, signPos[2])
+  group.add(postL)
+
+  scene.add(group)
+}
+
 function buildTrailMarkers(scene, terrain) {
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x3b3028, roughness: 1 })
   const flagMat = new THREE.MeshStandardMaterial({ color: 0xe27737, roughness: 0.8 })
@@ -617,6 +717,38 @@ function buildStartZone(scene, terrain) {
   makeBox(scene, new THREE.BoxGeometry(12.7, 0.35, 0.35), gantryMat, 0, y + 4.35, 25)
 }
 
+function buildCopyrightSign(scene, terrain) {
+  // A clear, permanent author credit near the spawn so it's the first thing seen.
+  const x = 9, z = 24
+  const y = terrain(x, z)
+  const canvas = document.createElement('canvas'); canvas.width = 900; canvas.height = 260
+  const ctx = canvas.getContext('2d')
+  const grad = ctx.createLinearGradient(0, 0, 900, 260)
+  grad.addColorStop(0, '#0d1013'); grad.addColorStop(1, '#1c1410')
+  ctx.fillStyle = grad; roundRectPath(ctx, 0, 0, 900, 260, 24); ctx.fill()
+  ctx.strokeStyle = '#f0a14a'; ctx.lineWidth = 6; roundRectPath(ctx, 6, 6, 888, 248, 20); ctx.stroke()
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#ffffff'; ctx.font = '800 54px system-ui, sans-serif'
+  ctx.fillText('\u00A9 MapidX', 450, 105)
+  ctx.fillStyle = '#f0a14a'; ctx.font = '600 34px system-ui, sans-serif'
+  ctx.fillText('@dipam.pam', 450, 165)
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '500 22px system-ui, sans-serif'
+  ctx.fillText('Built by Dipam Pradhan  \u2022  follow along on Instagram', 450, 210)
+  const tex = new THREE.CanvasTexture(canvas)
+  const mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.3, side: THREE.DoubleSide })
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.6), mat)
+  sign.position.set(x, y + 3.4, z)
+  sign.castShadow = true
+  scene.add(sign)
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x2c2f33, roughness: 0.6, metalness: 0.5 })
+  for (const px of [-3.9, 3.9]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 4.4, 8), poleMat)
+    post.position.set(x + px, y + 2.1, z)
+    post.castShadow = true
+    scene.add(post)
+  }
+}
+
 function buildUtilityPoles(scene, terrain) {
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x34383b, roughness: 0.8, metalness: 0.35 })
   const wireMat = new THREE.LineBasicMaterial({ color: 0x24282b, transparent: true, opacity: 0.7 })
@@ -669,6 +801,9 @@ export function buildWorld(scene, collisionSystem) {
   buildGround(scene, terrain)
   buildStartZone(scene, terrain)
   buildParkour(scene, terrain, collisionSystem)
+  buildRaftCrossing(scene, terrain, -68, 22, 'x')
+  buildRaftCrossing(scene, terrain, 30, -70, 'z')
+  buildCopyrightSign(scene, terrain)
   buildTrees(scene, curves, DESTINATIONS.map(d => d.position), terrain, collisionSystem)
   buildShrubs(scene, terrain)
   buildRocks(scene, terrain, collisionSystem)

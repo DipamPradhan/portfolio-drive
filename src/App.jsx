@@ -61,10 +61,73 @@ function drawMinimap(ctx, w, h, curves, dests, player, heading, visited) {
   ctx.restore()
 }
 
+const ICON_PATHS = {
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20a8 8 0 0 1 16 0" />
+    </>
+  ),
+  briefcase: (
+    <>
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </>
+  ),
+  rocket: (
+    <>
+      <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </>
+  ),
+  phone: (
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.66 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.3 1.85.53 2.81.66A2 2 0 0 1 22 16.92z" />
+  ),
+  github: (
+    <path fill="currentColor" stroke="none" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+  ),
+  linkedin: (
+    <path fill="currentColor" stroke="none" d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z" />
+  ),
+  camera: (
+    <>
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+      <circle cx="12" cy="13" r="3" />
+    </>
+  ),
+}
+
+function Icon({ name, size = '1em' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {ICON_PATHS[name]}
+    </svg>
+  )
+}
+
 const PANEL_CONTENT = {
   about: {
     title: 'About Me',
     accent: '#9b59b6',
+    icon: <Icon name="user" />,
     body: (u) => (
       <>
         <p className="resume-text">Name: <strong>{u.name}</strong></p>
@@ -76,6 +139,7 @@ const PANEL_CONTENT = {
   experience: {
     title: 'Experience',
     accent: '#4a90d9',
+    icon: <Icon name="briefcase" />,
     body: (u) => PORTFOLIO.experience.map((e, i) => (
       <div className="item" key={i}>
         <strong>{e.title}</strong>
@@ -87,6 +151,7 @@ const PANEL_CONTENT = {
   projects: {
     title: 'Projects',
     accent: '#27ae60',
+    icon: <Icon name="rocket" />,
     body: (u) => PORTFOLIO.projects.map((p, i) => (
       <div className="item" key={i}>
         <strong>{p.title}</strong>
@@ -98,12 +163,14 @@ const PANEL_CONTENT = {
   contact: {
     title: 'Contact',
     accent: '#e74c3c',
+    icon: <Icon name="mail" />,
     body: (u) => (
       <>
-        <div className="item"><strong>Email</strong><div className="desc">{u.email}</div></div>
-        <div className="item"><strong>Phone</strong><div className="desc">{u.phone}</div></div>
-        <div className="item"><strong>GitHub</strong><div className="desc">{u.github}</div></div>
-        <div className="item"><strong>LinkedIn</strong><div className="desc">{u.linkedin}</div></div>
+        <a className="item contact-row" href={`mailto:${u.email}`}><span className="contact-icon"><Icon name="mail" /></span><div><strong>Email</strong><div className="desc">{u.email}</div></div></a>
+        <a className="item contact-row" href={`tel:${u.phone}`}><span className="contact-icon"><Icon name="phone" /></span><div><strong>Phone</strong><div className="desc">{u.phone}</div></div></a>
+        <a className="item contact-row" href={`https://${u.github}`} target="_blank" rel="noopener noreferrer"><span className="contact-icon"><Icon name="github" /></span><div><strong>GitHub</strong><div className="desc">{u.github}</div></div></a>
+        <a className="item contact-row" href={`https://${u.linkedin}`} target="_blank" rel="noopener noreferrer"><span className="contact-icon"><Icon name="linkedin" /></span><div><strong>LinkedIn</strong><div className="desc">{u.linkedin}</div></div></a>
+        <a className="item contact-row" href={`https://instagram.com/${u.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer"><span className="contact-icon"><Icon name="camera" /></span><div><strong>Instagram</strong><div className="desc">{u.instagram}</div></div></a>
       </>
     ),
   },
@@ -235,7 +302,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('pd-sound-on') ?? 'true') !== false } catch (e) { return true }
   })
   const [soundVol, setSoundVol] = useState(() => {
-    try { const v = Number(localStorage.getItem('pd-sound-vol')); return isNaN(v) ? 75 : Math.max(0, Math.min(100, v)) } catch (e) { return 75 }
+    try { const v = Number(localStorage.getItem('pd-sound-vol')); return isNaN(v) ? 25 : Math.max(0, Math.min(100, v)) } catch (e) { return 25 }
   })
 
   const domRefs = useRef({})
@@ -438,7 +505,6 @@ export default function App() {
       const pct = Math.round((Math.abs(vehicle.speed) / vehicle.maxSpeed) * 100)
       if (Math.abs(pct - g.lastPct) > 1) {
         g.lastPct = pct
-        setSpeedPct(pct)
         if (speedText) speedText.textContent = String(Math.round((pct / 100) * 120))
       }
       const gear = vehicle.speed > 0.5 ? 'D' : vehicle.speed < -0.5 ? 'R' : 'N'
@@ -621,6 +687,7 @@ export default function App() {
             <span className="key">ESC / X</span><span className="action">Close panel</span>
           </div>
           <button className="start-btn" onClick={handleStart}>Enter the World</button>
+          <div className="credit">&copy; {PORTFOLIO.copyright.brand} &middot; <span className="ig">{PORTFOLIO.copyright.instagram}</span> on Instagram</div>
         </div>
       )}
 
@@ -662,16 +729,26 @@ export default function App() {
           {activePanel && panelConfig && (
             <>
               <div className="panel-backdrop" onClick={closePanel} />
-              <div className="hud-panel" style={{ borderLeft: `3px solid ${panelConfig.accent}` }}>
-                <div className="panel-header">
-                  <h2>
-                    <span className="panel-visit" style={{ color: panelConfig.accent }}>SECTION {DESTINATIONS.findIndex(d => d.key === activePanel) + 1}/4 &middot; </span>
-                    {panelConfig.title}
-                  </h2>
-                  <button className="close-btn" onClick={closePanel}>&times;</button>
+              <div className="hud-panel" style={{ '--accent': panelConfig.accent }}>
+                <div className="panel-accent-bar" />
+                <div className="panel-inner">
+                  <div className="panel-header">
+                    <div className="panel-header-left">
+                      <div className="panel-icon">{panelConfig.icon}</div>
+                      <div>
+                        <span className="panel-visit" style={{ color: panelConfig.accent }}>SECTION {DESTINATIONS.findIndex(d => d.key === activePanel) + 1}/4</span>
+                        <h2>{panelConfig.title}</h2>
+                      </div>
+                    </div>
+                    <button className="close-btn" onClick={closePanel}>&times;</button>
+                  </div>
+                  {panelConfig.body(PORTFOLIO.user)}
+                  <div className="esc-hint">PRESS ESC OR X TO CLOSE</div>
+                  <div className="panel-brand-footer">
+                    <span>&copy; {PORTFOLIO.copyright.brand}</span>
+                    <span className="ig">{PORTFOLIO.copyright.instagram}</span>
+                  </div>
                 </div>
-                {panelConfig.body(PORTFOLIO.user)}
-                <div className="esc-hint">PRESS ESC OR X TO CLOSE</div>
               </div>
             </>
           )}
